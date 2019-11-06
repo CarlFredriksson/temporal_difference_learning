@@ -50,6 +50,33 @@ class Environment:
             return 0
         return -1
 
+class SarsaAgent:
+    def __init__(self, alpha, epsilon):
+        self.alpha = alpha
+        self.epsilon = epsilon
+        self.Q = np.zeros((10, 7, 4))
+
+    def take_step(self, environment):
+        s = environment.state
+
+        # Select action epsilon-greedily
+        a = np.argmax(self.Q[s[0], s[1], :])
+        if np.random.rand() < self.epsilon:
+            a = np.random.randint(0, 4)
+        r = environment.take_action(Action(a))
+
+        # Update Q
+        s_prime = environment.state
+        a_prime = np.argmax(self.Q[s_prime[0], s_prime[1], :])
+        if np.random.rand() < self.epsilon:
+            a_prime = np.random.randint(0, 4)
+        self.Q[s[0], s[1], a] += self.alpha * (r + self.Q[s_prime[0], s_prime[1], a_prime] - self.Q[s[0], s[1], a])
+
+        # Check if goal has been reached
+        if r == 0:
+            return True
+        return False
+
 class QLearningAgent:
     def __init__(self, alpha, epsilon):
         self.alpha = alpha
@@ -66,8 +93,8 @@ class QLearningAgent:
         r = environment.take_action(Action(a))
 
         # Update Q
-        s_new = environment.state
-        self.Q[s[0], s[1], a] += self.alpha * (r + np.max(self.Q[s_new[0], s_new[1], :]) - self.Q[s[0], s[1], a])
+        s_prime = environment.state
+        self.Q[s[0], s[1], a] += self.alpha * (r + np.max(self.Q[s_prime[0], s_prime[1], :]) - self.Q[s[0], s[1], a])
 
         # Check if goal has been reached
         if r == 0:
@@ -75,26 +102,31 @@ class QLearningAgent:
         return False
 
 if __name__ == "__main__":
-    NUM_EPISODES = 100
+    NUM_EPISODES = 200
     MAX_NUM_STEPS = 1000
     ALPHA = 0.5
     EPSILON = 0.1
     STARTING_STATE = (0, 3)
 
-    print("Running {} episodes with Q-Learning agent".format(NUM_EPISODES))
+    agents = [
+        SarsaAgent(ALPHA, EPSILON),
+        QLearningAgent(ALPHA, EPSILON)
+    ]
+    num_steps = np.zeros((len(agents), NUM_EPISODES))
 
-    agent = QLearningAgent(ALPHA, EPSILON)
-    num_steps = np.zeros(NUM_EPISODES)
+    # Agents learning
+    for agent_index, agent in enumerate(agents):
+        for episode in range(NUM_EPISODES):
+            environment = Environment(STARTING_STATE)
+            for num_steps[agent_index, episode] in range(MAX_NUM_STEPS):
+                at_goal = agent.take_step(environment)
+                if at_goal:
+                    break
 
-    for episode in range(NUM_EPISODES):
-        environment = Environment(STARTING_STATE)
-        for num_steps[episode] in range(MAX_NUM_STEPS):
-            at_goal = agent.take_step(environment)
-            if at_goal:
-                break
-
-    plt.plot(range(NUM_EPISODES), num_steps)
+    # Plot results
+    plt.plot(range(NUM_EPISODES), num_steps[0, :], label="Sarsa")
+    plt.plot(range(NUM_EPISODES), num_steps[1, :], label="Q-learning")
+    plt.legend()
+    plt.xlabel("Episode")
+    plt.ylabel("Number of steps to reach goal")
     plt.show()
-
-    # TODO: Plot final greedy policy
-    # TODO: Implement Sarsa agent
