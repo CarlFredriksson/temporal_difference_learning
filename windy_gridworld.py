@@ -50,27 +50,29 @@ class Environment:
             return 0
         return -1
 
+def epsilon_greedy(epsilon, Q, s):
+    a = np.argmax(Q[s[0], s[1], :])
+    if np.random.rand() < epsilon:
+        a = np.random.randint(0, 4)
+    return a
+
 class SarsaAgent:
     def __init__(self, alpha, epsilon):
         self.alpha = alpha
         self.epsilon = epsilon
         self.Q = np.zeros((10, 7, 4))
+        self.a = 0
 
-    def take_step(self, environment):
+    def step(self, environment):
+        # Take action
         s = environment.state
-
-        # Select action epsilon-greedily
-        a = np.argmax(self.Q[s[0], s[1], :])
-        if np.random.rand() < self.epsilon:
-            a = np.random.randint(0, 4)
-        r = environment.take_action(Action(a))
-
-        # Update Q
+        r = environment.take_action(Action(self.a))
         s_prime = environment.state
-        a_prime = np.argmax(self.Q[s_prime[0], s_prime[1], :])
-        if np.random.rand() < self.epsilon:
-            a_prime = np.random.randint(0, 4)
-        self.Q[s[0], s[1], a] += self.alpha * (r + self.Q[s_prime[0], s_prime[1], a_prime] - self.Q[s[0], s[1], a])
+
+        # Select next action and update Q
+        a_prime = epsilon_greedy(self.epsilon, self.Q, s_prime)
+        self.Q[s[0], s[1], self.a] += self.alpha * (r + self.Q[s_prime[0], s_prime[1], a_prime] - self.Q[s[0], s[1], self.a])
+        self.a = a_prime
 
         # Check if goal has been reached
         if r == 0:
@@ -83,17 +85,16 @@ class QLearningAgent:
         self.epsilon = epsilon
         self.Q = np.zeros((10, 7, 4))
 
-    def take_step(self, environment):
+    def step(self, environment):
+        # Select action
         s = environment.state
+        a = epsilon_greedy(self.epsilon, self.Q, s)
 
-        # Select action epsilon-greedily
-        a = np.argmax(self.Q[s[0], s[1], :])
-        if np.random.rand() < self.epsilon:
-            a = np.random.randint(0, 4)
+        # Take action
         r = environment.take_action(Action(a))
+        s_prime = environment.state
 
         # Update Q
-        s_prime = environment.state
         self.Q[s[0], s[1], a] += self.alpha * (r + np.max(self.Q[s_prime[0], s_prime[1], :]) - self.Q[s[0], s[1], a])
 
         # Check if goal has been reached
@@ -119,7 +120,7 @@ if __name__ == "__main__":
         for episode in range(NUM_EPISODES):
             environment = Environment(STARTING_STATE)
             for num_steps[agent_index, episode] in range(MAX_NUM_STEPS):
-                at_goal = agent.take_step(environment)
+                at_goal = agent.step(environment)
                 if at_goal:
                     break
 
